@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+
+        .container-chat {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .mensagem.usuario {
+            align-self: flex-end;
+        }
+        .mensagem.bot {
+            align-self: flex-start;
+            white-space: pre-wrap;
+        }
+        .mensagem.erro {
+            align-self: flex-start;
+            color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+    <nav class="menu">
+        <a class="link" href="index.html">Home</a>
+        <a class="link" href="galeria.html">Galeria</a>
+        <a class="link" href="chat.html">Chat</a>
+        <a class="link" href="login.html">Login</a>
+        <a class="link" href="cadastro.html">Cadastro</a>
+    </nav>
+
+    <main>
+        <section class="container-chat" id="container-chat">
+            <div class="mensagem bot">
+                Gotham nao espera, escreva logo sua mensagem!
+            </div>
+        </section>
+
+        <form class="formulario-envio" id="formulario">
+            <input type="text" id="campo-mensagem" placeholder="Digite Aqui" autocomplete="off" required>
+            <button type="submit" class="btn-enviar" id="btn-enviar">Enviar</button>
+        </form>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Site de Rafael Stati. Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        const container = document.getElementById('container-chat')
+        const formulario = document.getElementById('formulario')
+        const campo = document.getElementById('campo-mensagem')
+        const botao = document.getElementById('btn-enviar')
+
+        // Guarda a conversa para a IA lembrar do contexto
+        const historico = []
+
+        function adicionarMensagem(texto, tipo) {
+            const div = document.createElement('div')
+            div.className = `mensagem ${tipo}`
+            div.textContent = texto // textContent evita injeção de HTML
+            container.appendChild(div)
+            container.scrollTop = container.scrollHeight
+            return div
+        }
+
+        formulario.addEventListener('submit', async (evento) => {
+            evento.preventDefault()
+
+            const texto = campo.value.trim()
+            if (!texto) return
+
+            adicionarMensagem(texto, 'usuario')
+            historico.push({ role: 'user', content: texto })
+
+            campo.value = ''
+            campo.disabled = true
+            botao.disabled = true
+
+            const aguardando = adicionarMensagem('Pensando...', 'bot')
+
+            try {
+                const resposta = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ historico })
+                })
+
+                const dados = await resposta.json()
+
+                if (!resposta.ok) {
+                    throw new Error(dados.erro || 'Erro ao falar com a IA')
+                }
+
+                aguardando.textContent = dados.resposta
+                historico.push({ role: 'assistant', content: dados.resposta })
+            } catch (erro) {
+                aguardando.className = 'mensagem erro'
+                aguardando.textContent = `Erro: ${erro.message}`
+                historico.pop() // remove a pergunta que falhou do histórico
+            } finally {
+                campo.disabled = false
+                botao.disabled = false
+                campo.focus()
+                container.scrollTop = container.scrollHeight
+            }
+        })
+    </script>
+</body>
+</html>
